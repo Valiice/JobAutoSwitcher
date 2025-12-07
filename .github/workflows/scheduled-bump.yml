@@ -2,7 +2,6 @@ name: Daily Release Scheduler
 
 on:
   schedule:
-    # Runs at 04:00 UTC every day
     - cron: '0 4 * * *'
   workflow_dispatch:
 
@@ -27,21 +26,17 @@ jobs:
         id: version
         run: |
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Latest tag found: $LATEST_TAG"
 
-          if [ "$LATEST_TAG" != "v0.0.0" ]; then
-            COMMITS=$(git log $LATEST_TAG..HEAD --oneline)
-          else
-            COMMITS=$(git log --oneline)
+          NON_ACTION_COMMITS=$(git log $LATEST_TAG..HEAD --pretty="%s" | grep -vE "^Bump actions/")
+          
+          if [ "$LATEST_TAG" = "v0.0.0" ]; then
+              NON_ACTION_COMMITS=$(git log --pretty="%s" | grep -vE "^Bump actions/")
           fi
 
-          if [ -z "$COMMITS" ]; then
-            echo "No new commits since $LATEST_TAG. Skipping release."
+          if [ -z "$NON_ACTION_COMMITS" ]; then
             echo "should_release=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-
-          echo "Found new commits. Proceeding with bump."
 
           VERSION=${LATEST_TAG#v}
           IFS='.' read -r major minor patch <<< "$VERSION"
@@ -51,7 +46,6 @@ jobs:
           
           NEW_TAG="v$major.$minor.$NEW_PATCH"
           
-          echo "New version will be: $NEW_TAG"
           echo "TAG_NAME=$NEW_TAG" >> $GITHUB_ENV
           echo "should_release=true" >> $GITHUB_OUTPUT
 
