@@ -1,0 +1,15 @@
+{
+  "Author": "Vali",
+  "Name": "Job Auto Switcher",
+  "Description": "Automatically switches to the correct job when clicking Commence on the wrong job.",
+  "Punchline": "Never miss a queue pop because of the wrong job again.",
+  "ApplicableVersion": "any",
+  "RepoUrl": "",
+  "Tags": [
+    "job",
+    "switcher",
+    "duty",
+    "qol"
+  ],
+  "DalamudApiLevel": 13
+}

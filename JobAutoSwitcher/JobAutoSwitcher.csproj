@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Dalamud.NET.Sdk/13.1.0">
+	<PropertyGroup>
+		<Authors>Vali</Authors>
+		<Description>Automatically switches to the correct job when clicking Commence.</Description>
+		<AssemblyName>JobAutoSwitcher</AssemblyName>
+		<TargetFramework>net9.0-windows</TargetFramework>
+		<PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+		<IsPackable>false</IsPackable>
+	</PropertyGroup>
+	<ItemGroup>
+		<PackageReference Update="DotNet.ReproducibleBuilds" Version="1.2.39" />
+	</ItemGroup>
+</Project>
