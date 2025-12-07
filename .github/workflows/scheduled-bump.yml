@@ -35,7 +35,7 @@ jobs:
 
           RELEVANT_COMMIT_COUNT=$(
             git log $LOG_RANGE --pretty="%s" | 
-            grep -vE "^Bump actions/" | 
+            grep -vE "^(Bump actions/|Merge pull request #.* from dependabot/gh_actions/.*)$" | 
             awk 'NF' | 
             wc -l
           )
