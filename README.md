@@ -2,11 +2,18 @@
 
 **JobAutoSwitcher** is a Dalamud plugin for *Final Fantasy XIV* that solves the annoyance of the "Class/Job is different" error in the Duty Finder.
 
-If you queue for a duty as one job, switch to another (e.g., to craft, gather, or play a different role) while waiting, and then click **Commence** when the duty pops, the game normally blocks you. This plugin intercepts that click, automatically switches you back to the correct job, and enters the duty for you seamlessly.
+If you queue for a duty as one job, switch to another (e.g., to craft, gather, or play a different role) while waiting, and then click **Commence** when the duty pops, the game normally blocks you with this error:
+
+![Duty Finder Error](images/pop.png)
+
+**JobAutoSwitcher fixes this instantly.** You don't have to manually switch back. Just click **Commence**, and the plugin will:
+1.  Detect the job you queued with.
+2.  Automatically find and equip your gearset with the **highest Item Level** for that job.
+3.  Enter the duty for you seamlessly.
 
 ## Features
 * **Auto-Switching:** Instantly detects the job required for the duty and switches your gearset.
-* **Smart Gear Selection:** Automatically picks the gearset with the **highest Item Level** if you have multiple sets for the same job.
+* **Smart Gear Selection:** Automatically picks the gearset with the **highest Item Level** if you have multiple sets for the same job (e.g. one for PvP, one for Raiding).
 * **Seamless Entry:** Bypasses the error message and automatically clicks "Commence" again once the switch is complete.
 * **Lag Proof:** Includes a smart retry loop that ensures you enter the duty even if you are stuck in an animation lock (like crafting or casting) when you click.
 
@@ -20,11 +27,7 @@ If you queue for a duty as one job, switch to another (e.g., to craft, gather, o
 1.  Queue for a duty as **Job A**.
 2.  Switch to **Job B** while waiting for the queue to pop.
 3.  When the "Duty Ready" window appears, simply click **Commence**.
-4.  The plugin will:
-    * Detect the mismatch.
-    * Switch you back to **Job A**.
-    * Wait for the gear change animation to finish.
-    * Auto-click Commence to enter the instance.
+4.  The plugin will handle the rest!
 
 ## Technical Details
 * **Detection:** Uses the Job Icon ID from the `ContentsFinderConfirm` addon to calculate the required Job ID (`IconID - 62100`).
