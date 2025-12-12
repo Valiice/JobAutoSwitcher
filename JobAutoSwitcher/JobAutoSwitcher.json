@@ -1,7 +1,7 @@
 {
   "Author": "Vali",
   "Name": "Job Auto Switcher",
-  "Description": "Automatically switches to the correct job when clicking Commence on the wrong job.",
+  "Description": "Automatically switches your gearset to match the queued job when you click Commence, bypassing the 'class/job is different' error.",
   "Punchline": "Never miss a queue pop because of the wrong job again.",
   "ApplicableVersion": "any",
   "RepoUrl": "",
