@@ -21,9 +21,9 @@ public class PluginUI : IDisposable
 
             ImGui.TextDisabled("This window is just for status.");
             ImGui.TextDisabled("You can close it safely.");
-
-            ImGui.End();
         }
+
+        ImGui.End();
     }
 
     public void Dispose()
