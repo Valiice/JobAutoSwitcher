@@ -1,14 +1,16 @@
 {
   "Author": "Vali",
   "Name": "Job Auto Switcher",
+  "InternalName": "JobAutoSwitcher",
   "Description": "Automatically switches your gearset to match the queued job when you click Commence, bypassing the 'class/job is different' error.",
   "Punchline": "Never miss a queue pop because of the wrong job again.",
-  "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/Valiice/JobAutoSwitcher",
+  "ApplicableVersion": "any",
   "Tags": [
     "job",
     "switcher",
     "duty",
     "qol"
-  ]
+  ],
+  "IconUrl": "https://raw.githubusercontent.com/Valiice/JobAutoSwitcher/master/images/icon.png"
 }
