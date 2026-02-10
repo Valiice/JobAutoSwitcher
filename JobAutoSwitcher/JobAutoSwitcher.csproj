@@ -6,6 +6,7 @@
 		<AssemblyName>JobAutoSwitcher</AssemblyName>
 		<TargetFramework>net10.0-windows</TargetFramework>
 		<PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
+		<Version>1.2.0</Version>
 		<IsPackable>false</IsPackable>
 	</PropertyGroup>
 	<ItemGroup>
