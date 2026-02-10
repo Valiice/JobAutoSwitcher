@@ -15,6 +15,7 @@ public class Service
     [PluginService] public static IPluginLog PluginLog { get; private set; } = null!;
     [PluginService] public static IFramework Framework { get; private set; } = null!;
     [PluginService] public static IGameGui Gui { get; private set; } = null!;
+    [PluginService] public static ITextureProvider TextureProvider { get; private set; } = null!;
 
     public static void Initialize(IDalamudPluginInterface pluginInterface)
         => pluginInterface.Create<Service>();

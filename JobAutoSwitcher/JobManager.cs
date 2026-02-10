@@ -1,5 +1,7 @@
-﻿using System.Threading.Tasks;
-using Dalamud.Game.ClientState.Objects.SubKinds;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
 using FFXIVClientStructs.FFXIV.Client.UI.Misc;
@@ -9,133 +11,211 @@ using Lumina.Excel.Sheets;
 
 namespace JobAutoSwitcher;
 
-public class JobManager
+public class JobManager(Configuration config) : IDisposable
 {
-    // --- CONSTANTS ---
-    private const string _addonName = "ContentsFinderConfirm";
+    private const int AtkValuesMinCount = 25;
+    private const int JobIconIndex = 24;
+    private const uint IconBaseOffset = 62100;
+    private const uint MinJobIconId = 62100;
+    private const uint MaxJobIconId = 63000;
+    private const int MaxGearsetSlots = 100;
+    private const int CommenceButtonId = 8;
 
-    // Memory Offsets & Indexes
-    private const int _atkValuesMinCount = 25;       // Window must have at least 25 values
-    private const int _jobIconIndex = 24;            // Index [24] holds the Job Icon ID
-
-    // Job Math
-    private const uint _iconBaseOffset = 62100;
-    private const uint _minJobIconId = 62100;
-    private const uint _maxJobIconId = 63000;
-
-    // Gearset Logic
-    private const int _maxGearsetSlots = 100;
-
-    // Automation
-    private const int _commenceButtonId = 8;
-    private const int _retryCount = 5;
-    private const int _retryDelayFirst = 500;
-    private const int _retryDelayLoop = 2000;
-    private const int _callbackArgCount = 1;
+    private readonly Dictionary<uint, string> _jobNameCache = [];
+    private readonly Lock _lock = new();
+    private CancellationTokenSource? _cts;
 
     public unsafe void OnCommenceWindow(AtkUnitBase* addon)
     {
-        if (addon->AtkValuesCount < _atkValuesMinCount) return;
+        if (!config.Enabled) return;
 
-        var targetIconId = addon->AtkValues[_jobIconIndex].UInt;
-        if (targetIconId < _minJobIconId || targetIconId > _maxJobIconId) return;
+        var targetJobId = ParseTargetJobId(addon);
+        if (targetJobId == null) return;
 
-        var calculatedJobId = targetIconId - _iconBaseOffset;
+        if (IsAlreadyOnJob(targetJobId.Value)) return;
 
-        var localPlayer = Service.ObjectTable[0] as IPlayerCharacter;
-        if (localPlayer == null || localPlayer.ClassJob.Value.RowId == calculatedJobId)
-            return;
+        SwitchAndCommence(targetJobId.Value);
+    }
 
-        SwitchAndCommence(calculatedJobId);
+    private static unsafe uint? ParseTargetJobId(AtkUnitBase* addon)
+    {
+        if (addon->AtkValuesCount < AtkValuesMinCount) return null;
+
+        var iconId = addon->AtkValues[JobIconIndex].UInt;
+        if (iconId < MinJobIconId || iconId > MaxJobIconId) return null;
+
+        return iconId - IconBaseOffset;
+    }
+
+    private static bool IsAlreadyOnJob(uint targetJobId)
+    {
+        var localPlayer = Service.ObjectTable.LocalPlayer;
+        return localPlayer == null || localPlayer.ClassJob.Value.RowId == targetJobId;
     }
 
     private void SwitchAndCommence(uint targetJobId)
     {
-        if (!EquipBestGearset(targetJobId)) return;
+        PrintChat($"Switching to {GetJobName(targetJobId)}...");
+
+        if (!EquipGearset(targetJobId)) return;
 
         StartCommenceLoop(targetJobId);
     }
 
-    private unsafe bool EquipBestGearset(uint targetJobId)
+    private unsafe bool EquipGearset(uint targetJobId)
     {
         var rapture = RaptureGearsetModule.Instance();
         if (rapture == null) return false;
 
+        if (TryEquipPreferredGearset(rapture, targetJobId))
+            return true;
+
+        return TryEquipHighestIlvlGearset(rapture, targetJobId);
+    }
+
+    private unsafe bool TryEquipPreferredGearset(RaptureGearsetModule* rapture, uint targetJobId)
+    {
+        if (!config.GearsetPreferences.TryGetValue(targetJobId, out var preferredId) || !preferredId.HasValue)
+            return false;
+
+        var gearset = rapture->GetGearset(preferredId.Value);
+        if (gearset != null &&
+            gearset->Flags.HasFlag(RaptureGearsetModule.GearsetFlag.Exists) &&
+            gearset->ClassJob == targetJobId)
+        {
+            rapture->EquipGearset(preferredId.Value);
+            return true;
+        }
+
+        Service.PluginLog.Warning(
+            $"[JobAutoSwitcher] Preferred gearset {preferredId.Value + 1} is invalid for job {targetJobId}, falling back to highest ilvl.");
+        return false;
+    }
+
+    private static unsafe bool TryEquipHighestIlvlGearset(RaptureGearsetModule* rapture, uint targetJobId)
+    {
         short bestItemLevel = -1;
         byte? bestGearsetId = null;
 
-        for (int i = 0; i < _maxGearsetSlots; i++)
+        for (int i = 0; i < MaxGearsetSlots; i++)
         {
             var gearset = rapture->GetGearset(i);
             if (gearset != null &&
                 gearset->Flags.HasFlag(RaptureGearsetModule.GearsetFlag.Exists) &&
-                gearset->ClassJob == targetJobId)
+                gearset->ClassJob == targetJobId &&
+                gearset->ItemLevel > bestItemLevel)
             {
-                if (gearset->ItemLevel > bestItemLevel)
-                {
-                    bestItemLevel = gearset->ItemLevel;
-                    bestGearsetId = gearset->Id;
-                }
+                bestItemLevel = gearset->ItemLevel;
+                bestGearsetId = gearset->Id;
             }
         }
 
-        if (bestGearsetId.HasValue)
-        {
-            var jobRow = Service.Data.GetExcelSheet<ClassJob>()?.GetRow(targetJobId);
-            var jobName = jobRow.HasValue ? jobRow.Value.Name.ToString() : "Unknown Job";
+        if (!bestGearsetId.HasValue) return false;
 
-            Service.Chat.Print(new SeString(new TextPayload($"[JobAutoSwitcher] Switching to {jobName}...")));
-            rapture->EquipGearset(bestGearsetId.Value);
-            return true;
-        }
-
-        return false;
+        rapture->EquipGearset(bestGearsetId.Value);
+        return true;
     }
 
     private void StartCommenceLoop(uint targetJobId)
     {
-        _ = Task.Run(async () =>
+        lock (_lock)
         {
-            for (int i = 0; i < _retryCount; i++)
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = new CancellationTokenSource();
+        }
+
+        var token = _cts!.Token;
+
+        _ = Task.Run(() => CommenceLoopAsync(targetJobId, token), token);
+    }
+
+    private async Task CommenceLoopAsync(uint targetJobId, CancellationToken token)
+    {
+        try
+        {
+            for (int attempt = 0; attempt < config.RetryCount; attempt++)
             {
-                await Task.Delay(i == 0 ? _retryDelayFirst : _retryDelayLoop);
+                var delay = attempt == 0 ? config.RetryDelayFirst : config.RetryDelayLoop;
+                await Task.Delay(delay, token);
 
-                bool keepRetrying = true;
+                var shouldContinue = await TryClickCommenceAsync(targetJobId, attempt, token);
+                if (!shouldContinue) break;
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            Service.PluginLog.Error(ex, "[JobAutoSwitcher] Error in commence loop.");
+        }
+    }
 
-                await Service.Framework.RunOnFrameworkThread(() =>
-                {
-                    unsafe
-                    {
-                        var wrapper = Service.Gui.GetAddonByName(_addonName, 1);
-                        var addonPtr = (AtkUnitBase*)wrapper.Address;
+    private Task<bool> TryClickCommenceAsync(uint targetJobId, int attempt, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
 
-                        if (addonPtr == null || !addonPtr->IsVisible)
-                        {
-                            keepRetrying = false;
-                            return;
-                        }
+        return Service.Framework.RunOnFrameworkThread(() =>
+        {
+            unsafe
+            {
+                var addon = (AtkUnitBase*)Service.Gui.GetAddonByName(Plugin.AddonName).Address;
+                if (addon == null || !addon->IsVisible)
+                    return false;
 
-                        var player = Service.ObjectTable[0] as IPlayerCharacter;
-                        if (player != null && player.ClassJob.Value.RowId != targetJobId)
-                        {
-                            Service.PluginLog.Info("[JobAutoSwitcher] Retrying gear switch...");
-                            EquipBestGearset(targetJobId);
-                        }
+                RetryGearSwitchIfNeeded(targetJobId);
 
-                        Service.PluginLog.Info($"[JobAutoSwitcher] Attempt {i + 1}: Clicking Commence...");
-                        addonPtr->Focus();
+                Service.PluginLog.Info($"[JobAutoSwitcher] Attempt {attempt + 1}: Clicking Commence...");
+                ClickCommenceButton(addon);
 
-                        var values = stackalloc AtkValue[_callbackArgCount];
-
-                        values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
-                        values[0].Int = _commenceButtonId;
-
-                        addonPtr->FireCallback(_callbackArgCount, values);
-                    }
-                });
-
-                if (!keepRetrying) break;
+                return true;
             }
         });
+    }
+
+    private unsafe void RetryGearSwitchIfNeeded(uint targetJobId)
+    {
+        var player = Service.ObjectTable.LocalPlayer;
+        if (player == null || player.ClassJob.Value.RowId == targetJobId) return;
+
+        Service.PluginLog.Info("[JobAutoSwitcher] Retrying gear switch...");
+        EquipGearset(targetJobId);
+    }
+
+    private static unsafe void ClickCommenceButton(AtkUnitBase* addon)
+    {
+        addon->Focus();
+
+        var values = stackalloc AtkValue[1];
+        values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+        values[0].Int = CommenceButtonId;
+        addon->FireCallback(1, values);
+    }
+
+    private string GetJobName(uint jobId)
+    {
+        if (_jobNameCache.TryGetValue(jobId, out var cached))
+            return cached;
+
+        var jobRow = Service.Data.GetExcelSheet<ClassJob>()?.GetRow(jobId);
+        var name = jobRow.HasValue ? jobRow.Value.Name.ToString() : "Unknown Job";
+        _jobNameCache[jobId] = name;
+        return name;
+    }
+
+    private static void PrintChat(string message)
+    {
+        Service.Chat.Print(new SeString(new TextPayload($"[JobAutoSwitcher] {message}")));
+    }
+
+    public void Dispose()
+    {
+        lock (_lock)
+        {
+            _cts?.Cancel();
+            _cts?.Dispose();
+            _cts = null;
+        }
+
+        GC.SuppressFinalize(this);
     }
 }
