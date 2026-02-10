@@ -25,11 +25,12 @@ public class JobManager(Configuration config) : IDisposable
     private readonly Lock _lock = new();
     private CancellationTokenSource? _cts;
 
-    public unsafe void OnCommenceWindow(AtkUnitBase* addon)
+    public void OnCommenceWindow(nint addonAddress)
     {
         if (!config.Enabled) return;
 
-        var targetJobId = ParseTargetJobId(addon);
+        uint? targetJobId;
+        unsafe { targetJobId = ParseTargetJobId((AtkUnitBase*)addonAddress); }
         if (targetJobId == null) return;
 
         if (IsAlreadyOnJob(targetJobId.Value)) return;
@@ -172,7 +173,7 @@ public class JobManager(Configuration config) : IDisposable
         });
     }
 
-    private unsafe void RetryGearSwitchIfNeeded(uint targetJobId)
+    private void RetryGearSwitchIfNeeded(uint targetJobId)
     {
         var player = Service.ObjectTable.LocalPlayer;
         if (player == null || player.ClassJob.Value.RowId == targetJobId) return;

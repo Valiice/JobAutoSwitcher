@@ -2,7 +2,6 @@ using System;
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
 using Dalamud.Plugin;
-using FFXIVClientStructs.FFXIV.Component.GUI;
 using JobAutoSwitcher.Commands;
 using JobAutoSwitcher.Services;
 using JobAutoSwitcher.UI;
@@ -41,15 +40,13 @@ public sealed class Plugin : IDalamudPlugin, IDisposable
         Service.PluginLog.Info("[JobAutoSwitcher] Ready.");
     }
 
-    private unsafe void OnAddonEvent(AddonEvent type, AddonArgs args)
+    private void OnAddonEvent(AddonEvent type, AddonArgs args)
     {
         if (args is not AddonReceiveEventArgs receiveArgs) return;
         if ((int)receiveArgs.AtkEventType != ButtonClickEventType) return;
+        if (args.Addon.Address == nint.Zero) return;
 
-        var addon = (AtkUnitBase*)args.Addon.Address;
-        if (addon == null) return;
-
-        _jobManager.OnCommenceWindow(addon);
+        _jobManager.OnCommenceWindow(args.Addon.Address);
     }
 
     public void Dispose()

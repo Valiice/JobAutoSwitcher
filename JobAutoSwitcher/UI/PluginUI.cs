@@ -27,6 +27,7 @@ public class PluginUI(Configuration config) : IDisposable
     {
         if (!_isVisible) return;
 
+        ImGui.SetNextWindowSizeConstraints(new Vector2(500, 0), new Vector2(float.MaxValue, float.MaxValue));
         if (ImGui.Begin("Job Auto Switcher", ref _isVisible, ImGuiWindowFlags.AlwaysAutoResize))
         {
             DrawKofiButton();
@@ -198,17 +199,21 @@ public class PluginUI(Configuration config) : IDisposable
         return 0;
     }
 
-    private unsafe void RefreshGearsetData()
+    private void RefreshGearsetData()
     {
         _gearsetEntries.Clear();
 
-        var rapture = RaptureGearsetModule.Instance();
-        if (rapture == null) return;
+        Dictionary<uint, List<GearsetInfo>> jobGearsets;
+        unsafe
+        {
+            var rapture = RaptureGearsetModule.Instance();
+            if (rapture == null) return;
+            jobGearsets = CollectGearsetsByJob(rapture);
+        }
 
         var jobSheet = Service.Data.GetExcelSheet<ClassJob>();
         if (jobSheet == null) return;
 
-        var jobGearsets = CollectGearsetsByJob(rapture);
         BuildEntries(jobGearsets, jobSheet);
 
         _gearsetEntries.Sort((a, b) => string.Compare(a.JobName, b.JobName, StringComparison.OrdinalIgnoreCase));
