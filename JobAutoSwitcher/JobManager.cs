@@ -187,7 +187,7 @@ public class JobManager(Configuration config) : IDisposable
         addon->Focus();
 
         var values = stackalloc AtkValue[1];
-        values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.ValueType.Int;
+        values[0].Type = FFXIVClientStructs.FFXIV.Component.GUI.AtkValueType.Int;
         values[0].Int = CommenceButtonId;
         addon->FireCallback(1, values);
     }
