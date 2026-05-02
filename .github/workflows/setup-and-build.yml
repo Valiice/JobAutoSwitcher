@@ -61,7 +61,7 @@ jobs:
           fi
 
       - name: Upload Build Artifact
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: JobAutoSwitcher
           retention-days: 14
@@ -75,7 +75,7 @@ jobs:
 
       - name: Upload Release Asset
         if: inputs.version != ''
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: JobAutoSwitcher-release
           retention-days: 1
